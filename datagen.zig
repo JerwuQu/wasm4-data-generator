@@ -1,7 +1,5 @@
 const std = @import("std");
 
-pub const DataGenerator = fn get(buf: []u8) usize;
-
 fn leb128Length(n: u64) usize {
     var num = n;
     var len: usize = 1;
@@ -12,7 +10,7 @@ fn leb128Length(n: u64) usize {
     return len;
 }
 
-pub fn create(comptime data: []const u8) DataGenerator {
+pub fn create(comptime data: []const u8) fn ([]u8) usize {
     const numCount = if (data.len % 8 == 0) data.len / 8 else data.len / 8 + 1;
     comptime var nums: [numCount]u64 = [_]u64{0} ** numCount;
     for (data) |char, i| {
@@ -41,7 +39,7 @@ pub fn create(comptime data: []const u8) DataGenerator {
                         \\local.get %[ptr]
                         \\f64.const {x}
                         \\f64.store %[offset]
-                    , .{ fnum });
+                    , .{fnum});
                     asm volatile (asmStr
                         :
                         : [ptr] "r" (buf.ptr),
