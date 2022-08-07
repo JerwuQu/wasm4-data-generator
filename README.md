@@ -7,6 +7,6 @@ This is only necessary because not every WASM runtime supports passive data segm
 
 It is most useful when you have lots of compressed data that will be uncompressed at runtime since that data would waste memory while being compressed.
 
-Quick math shows that this method will require about double the amount of bytes to store your data compared to using a data segment, but usually a bit less.
+Quick math shows that this method will require about 50-75% more bytes to store your data compared to using a data segment.
 
 Released into public domain.

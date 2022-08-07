@@ -2,27 +2,15 @@ const std = @import("std");
 
 pub const DataGenerator = fn get(buf: []u8) usize;
 
-// TODO: When LEB128 length is greater than 8, it's more optimal to use f64
-//  problem is, zigs default float serializer does not keep nan payload.
-//  Furthermore, the LLVM parsing of floats is different from WAT.
-//  https://github.com/llvm/llvm-project/blob/f28c006a5895fc0e329fe15fead81e37457cb1d1/llvm/lib/Support/APFloat.cpp#L2830
-//  Keeping code below:
-//
-// break :blk std.fmt.comptimePrint(
-//     \\local.get %[ptr]
-//     \\f64.const {s}
-//     \\f64.store {d}
-// , .{ @bitCast(f64, num), i * 8});
-//
-// fn lebLength(n: u64) usize {
-//     var num = n;
-//     var len: usize = 1;
-//     while (num > 0x7f) {
-//         num >>= 7;
-//         len += 1;
-//     }
-//     return len;
-// }
+fn leb128Length(n: u64) usize {
+    var num = n;
+    var len: usize = 1;
+    while (num > 0x7f) {
+        num >>= 7;
+        len += 1;
+    }
+    return len;
+}
 
 pub fn create(comptime data: []const u8) DataGenerator {
     const numCount = if (data.len % 8 == 0) data.len / 8 else data.len / 8 + 1;
@@ -33,15 +21,33 @@ pub fn create(comptime data: []const u8) DataGenerator {
     return struct {
         pub fn get(buf: []u8) usize {
             inline for (nums) |num, i| {
-                asm volatile (
-                    \\local.get %[ptr]
-                    \\i64.const %[value]
-                    \\i64.store %[offset]
-                    :
-                    : [value] "n" (num),
-                      [offset] "n" (i * 8),
-                      [ptr] "r" (buf.ptr),
-                );
+                // When the byte length for LEB128 of our number is less than 8,
+                // it's more efficient to use an i64 rather than a f64.
+                // Also, we don't have support for NaNs with payload yet,
+                // so we fall back on using i64 for those too for now.
+                const fnum = @bitCast(f64, num);
+                if (comptime (leb128Length(num) < 8 or std.math.isNan(fnum))) {
+                    asm volatile (
+                        \\local.get %[ptr]
+                        \\i64.const %[value]
+                        \\i64.store %[offset]
+                        :
+                        : [ptr] "r" (buf.ptr),
+                          [value] "n" (num),
+                          [offset] "n" (i * 8),
+                    );
+                } else {
+                    const asmStr = comptime std.fmt.comptimePrint(
+                        \\local.get %[ptr]
+                        \\f64.const {x}
+                        \\f64.store %[offset]
+                    , .{ fnum });
+                    asm volatile (asmStr
+                        :
+                        : [ptr] "r" (buf.ptr),
+                          [offset] "n" (i * 8),
+                    );
+                }
             }
             return data.len;
         }
