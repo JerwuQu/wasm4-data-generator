@@ -11,6 +11,7 @@ fn leb128Length(n: u64) usize {
 }
 
 pub fn create(comptime data: []const u8) fn ([]u8) usize {
+    @setEvalBranchQuota(100000000);
     const numCount = if (data.len % 8 == 0) data.len / 8 else data.len / 8 + 1;
     comptime var nums: [numCount]u64 = [_]u64{0} ** numCount;
     for (data) |char, i| {
