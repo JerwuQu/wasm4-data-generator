@@ -24,8 +24,10 @@ pub fn create(comptime data: []const u8) fn ([]u8) usize {
                 // it's more efficient to use an i64 rather than a f64.
                 // Also, we don't have support for NaNs with payload yet,
                 // so we fall back on using i64 for those too for now.
-                const fnum = @bitCast(f64, num);
-                if (comptime (leb128Length(num) < 8 or std.math.isNan(fnum))) {
+
+                // TODO: reimplement f64
+                // const fnum = @bitCast(f64, num);
+                // if (comptime (leb128Length(num) < 8 or std.math.isNan(fnum))) {
                     asm volatile (
                         \\local.get %[ptr]
                         \\i64.const %[value]
@@ -35,18 +37,18 @@ pub fn create(comptime data: []const u8) fn ([]u8) usize {
                           [value] "n" (num),
                           [offset] "n" (i * 8),
                     );
-                } else {
-                    const asmStr = comptime std.fmt.comptimePrint(
-                        \\local.get %[ptr]
-                        \\f64.const {x}
-                        \\f64.store %[offset]
-                    , .{fnum});
-                    asm volatile (asmStr
-                        :
-                        : [ptr] "r" (buf.ptr),
-                          [offset] "n" (i * 8),
-                    );
-                }
+                // } else {
+                //     const asmStr = comptime std.fmt.comptimePrint(
+                //         \\local.get %[ptr]
+                //         \\f64.const {x}
+                //         \\f64.store %[offset]
+                //     , .{fnum});
+                //     asm volatile (asmStr
+                //         :
+                //         : [ptr] "r" (buf.ptr),
+                //           [offset] "n" (i * 8),
+                //     );
+                // }
             }
             return data.len;
         }
