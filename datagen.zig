@@ -10,7 +10,7 @@ fn leb128Length(n: u64) usize {
     return len;
 }
 
-pub fn create(comptime data: []const u8) fn ([]u8) usize {
+pub fn create(comptime data: []const u8) fn ([]u8) []u8 {
     @setEvalBranchQuota(100000000);
     const numCount = if (data.len % 8 == 0) data.len / 8 else data.len / 8 + 1;
     comptime var nums: [numCount]u64 = [_]u64{0} ** numCount;
@@ -18,7 +18,7 @@ pub fn create(comptime data: []const u8) fn ([]u8) usize {
         nums[i / 8] |= @intCast(u64, char) << (i % 8) * 8;
     }
     return struct {
-        pub fn get(buf: []u8) usize {
+        pub fn get(buf: []u8) []u8 {
             inline for (nums) |num, i| {
                 // When the byte length for LEB128 of our number is less than 8,
                 // it's more efficient to use an i64 rather than a f64.
@@ -50,7 +50,7 @@ pub fn create(comptime data: []const u8) fn ([]u8) usize {
                 //     );
                 // }
             }
-            return data.len;
+            return buf[0..data.len];
         }
     }.get;
 }
